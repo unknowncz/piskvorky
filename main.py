@@ -1,15 +1,14 @@
-from math import inf
 import threading, queue
 
 
-depth = 7
+depth = 9
 winningnum = 3
-
 
 def getinputs():
     x = int(input('move row(from top left): '))-1
     y = int(input('move column(from top left): '))-1
     return [x, y]
+
 
 class game:
     def __init__(self, boardsize:int, eng=False) -> None:
@@ -97,32 +96,41 @@ class game:
         self.q.put({list(testgame.evalpos(startdepth+1, not minormax).keys())[0]:v}, block=True)
 
     def evalpos(self, startdepth=0, minormax=False) -> dict:
-        # Not yet functional
-        self.eval = (-inf if minormax else inf)
+        # Not yet functional?
+        self.eval = 0
         if startdepth > depth:
-            print(f'Depth {startdepth} reached.')
+            # print(f'Depth {startdepth} reached.')
             return {0:tuple()}
         t = {}
+        thl:list[threading.Thread]=[]
         self.q = queue.Queue()
         for k, v in self.moves.items():
-            testgame = game(self.boardsize, True)
-            testgame.pprint = self.passfunc
+            self.testgame = game(self.boardsize, True)
+            self.testgame.pprint = self.passfunc
             for i, j in self.playedmoves.items():
-                testgame.play(j, 2 if i%2 else 1)
+                self.testgame.play(j, 2 if i%2 else 1)
                 lastplayer = 2 if i%2 else 1
-            testgame.play([v%self.boardsize, v//self.boardsize], lastplayer)
-            if testgame.ended:
+            self.testgame.play([v%self.boardsize, v//self.boardsize], lastplayer)
+            if self.testgame.ended:
                 invdepth = depth - startdepth - 1
                 return {(invdepth if minormax else -invdepth):v}
-            th = threading.Thread(target=self.evalposwrapper, args=(startdepth+1, not minormax, testgame, v))
+            th = threading.Thread(target=self.evalposwrapper, args=(startdepth+1, not minormax, self.testgame, v))
             th.run()
+            thl+=[th]
 
-        self.q.join()
+        qlen=len(self.q.queue)
+        while True:
+            if qlen==len(self.moves.items()):
+                break
+
+        # TODO: fix final return value
         while True:
             if self.q.empty():
                 break
             t|=self.q.get()
         self.eval = (min if minormax else max)(t.keys())
+        if startdepth==0:
+            return {self.eval:[t]}
         return {self.eval:t[self.eval]}
 
     def pprint(self):
@@ -140,5 +148,5 @@ if __name__ == '__main__':
     while not g.ended:
         if g.play(getinputs(), p):
             p = 1 if p==2 else 2
-        # print(g.evalpos(minormax=p==1))
+            print(g.evalpos(minormax=p==1))
     print(f'winner: {g.winner}')
