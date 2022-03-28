@@ -123,7 +123,7 @@ class game:
             if qlen==len(self.moves.items()):
                 break
 
-        # TODO: fix final return value
+        # TODO: fix return value
         while True:
             if self.q.empty():
                 break
